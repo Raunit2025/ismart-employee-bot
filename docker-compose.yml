@@ -1,0 +1,45 @@
+services:
+  # 1. The Core AI Engine (Ollama)
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ismart_ai_engine
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    environment:
+      - OLLAMA_KEEP_ALIVE=24h
+
+  # 2. The Middleware (Translation, Voice, Ticketing Routing)
+  api_middleware:
+    build: ./middleware
+    container_name: ismart_middleware
+    ports:
+      - "8000:8000"
+    depends_on:
+      - ollama
+    environment:
+      - OLLAMA_URL=http://ollama:11434
+      - DEVICE=cpu
+    volumes:
+      - hf_data:/root/.cache/huggingface 
+
+  # 3. The Mock Chatbox UI
+  frontend_ui:
+    build: ./frontend
+    container_name: ismart_chat_ui
+    ports:
+      - "8501:8501"
+    depends_on:
+      - api_middleware
+
+volumes:
+  ollama_data:
+  hf_data: 
