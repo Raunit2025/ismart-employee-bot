@@ -1,5 +1,5 @@
 services:
-  # 1. The Core AI Engine (Ollama)
+  # 1. The Core AI Engine (Ollama) Donwload kar lena warna gya
   ollama:
     image: ollama/ollama:latest
     container_name: ismart_ai_engine
@@ -17,7 +17,7 @@ services:
     environment:
       - OLLAMA_KEEP_ALIVE=24h
 
-  # 2. Database (PostgreSQL)
+  # 2. Database (PostgreSQL) 
   postgres_db:
     image: postgres:15-alpine
     container_name: ismart_postgres
@@ -30,7 +30,7 @@ services:
     volumes:
       - pg_data:/var/lib/postgresql/data
 
-  # 3. The Middleware (Translation, Logic, Ticketing)
+  # 3. The Middleware (Translation, Logic, Ticketing) 
   api_middleware:
     build: ./middleware
     container_name: ismart_middleware
@@ -46,7 +46,7 @@ services:
     volumes:
       - hf_data:/root/.cache/huggingface 
 
-  # 4. The Frontend Chat UI
+  # 4. The Frontend Chat UI (Abhi to bekaar hai per will improve)
   frontend_ui:
     build: ./frontend
     container_name: ismart_chat_ui
@@ -54,7 +54,7 @@ services:
       - "8501:8501"
     depends_on:
       - api_middleware
-
+# Storage Volumes for Data Persistence (Bahot jaruri hai, nahi to download karne me haalat kharab ho jata hai)
 volumes:
   ollama_data:
   hf_data: 

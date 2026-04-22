@@ -7,14 +7,11 @@ import os
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 from sqlalchemy.orm import Session
 
-# Import our new database modules
 from database import engine, get_db, SessionLocal
 import models
 
-# Create the database tables
 models.Base.metadata.create_all(bind=engine)
 
-# TEMPORARY: Create a test user on startup
 db = SessionLocal()
 if not db.query(models.User).filter(models.User.employee_id == "EMP101").first():
     db.add(models.User(employee_id="EMP101", name="Ashi Saxena", language_preference="en"))
@@ -70,18 +67,15 @@ def translate_text(text, src_lang, tgt_lang):
 
 @app.post("/chat")
 def chat_with_bot(request: ChatRequest, db: Session = Depends(get_db)):
-    # 1. User Auth Check
     user = db.query(models.User).filter(models.User.employee_id == request.employee_id).first()
     if not user:
         return {"reply": "Error: Employee ID not found. Please log in with a valid ID."}
 
     original_text = request.message
-    nllb_src_lang = request.language # We trust the frontend now!
+    nllb_src_lang = request.language
 
-    # 2. Translate to English for the AI
     english_input = translate_text(original_text, nllb_src_lang, "eng_Latn") if nllb_src_lang != "eng_Latn" else original_text
 
-    # 3. AI Processing
     payload = {
         "model": "phi3",
         "prompt": f"{SYSTEM_PROMPT}\n\nEmployee: {english_input}\nChatbot:",
@@ -93,7 +87,6 @@ def chat_with_bot(request: ChatRequest, db: Session = Depends(get_db)):
         response = requests.post(f"{OLLAMA_URL}/api/generate", json=payload)
         bot_english_reply = response.json().get("response", "Error generating response.")
         
-        # 4. Parse Output
         lines = bot_english_reply.strip().split('\n')
         category_val = "General Queries"
         priority_val = "Low"
@@ -104,7 +97,6 @@ def chat_with_bot(request: ChatRequest, db: Session = Depends(get_db)):
             elif line.startswith("Priority:"): priority_val = line.replace("Priority:", "").strip()
             elif line.startswith("Response:"): response_text = line.replace("Response:", "").strip()
 
-        # 5. Save Ticket to Database
         new_ticket = models.Ticket(
             user_id=user.id,
             category=category_val,
@@ -118,7 +110,6 @@ def chat_with_bot(request: ChatRequest, db: Session = Depends(get_db)):
         db.add(models.Message(ticket_id=new_ticket.id, sender="bot", content=response_text))
         db.commit()
 
-        # 6. Translate response back for the UI
         translated_body = translate_text(response_text, "eng_Latn", nllb_src_lang) if nllb_src_lang != "eng_Latn" else response_text
         
         final_ui_text = f"Ticket #{new_ticket.id} Created.\nCategory: {category_val}\nPriority: {priority_val}\n\n{translated_body}"
@@ -134,7 +125,6 @@ def get_user_tickets(employee_id: str, db: Session = Depends(get_db)):
     if not user:
         return {"tickets": []}
     
-    # Fetch all tickets for this user, newest first
     user_tickets = db.query(models.Ticket).filter(models.Ticket.user_id == user.id).order_by(models.Ticket.created_at.desc()).all()
     
     tickets_list = []

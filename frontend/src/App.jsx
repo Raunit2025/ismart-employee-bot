@@ -8,7 +8,7 @@ function App() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [tickets, setTickets] = useState([]); // New State for Tickets
+  const [tickets, setTickets] = useState([]);
   
   const messagesEndRef = useRef(null);
 
@@ -17,7 +17,6 @@ function App() {
   };
   useEffect(() => { scrollToBottom(); }, [messages, isLoading]);
 
-  // Fetch Tickets Function
   const fetchTickets = async (empId) => {
     try {
       const response = await fetch(`http://localhost:8000/tickets/${empId}`);
@@ -32,7 +31,7 @@ function App() {
     e.preventDefault();
     if (employeeId.trim()) {
       setIsLoggedIn(true);
-      fetchTickets(employeeId); // Fetch tickets right after login
+      fetchTickets(employeeId);
     }
   };
 
@@ -57,7 +56,6 @@ function App() {
       const data = await response.json();
       setMessages((prev) => [...prev, { sender: 'bot', text: data.reply }]);
       
-      // Refresh tickets in the sidebar after a new one is potentially created
       fetchTickets(employeeId); 
     // eslint-disable-next-line no-unused-vars
     } catch (error) {
@@ -68,7 +66,6 @@ function App() {
   };
 
   if (!isLoggedIn) {
-    // ... (Keep your exact existing login return block here) ...
     return (
       <div className="login-container">
         <div className="login-card">
@@ -111,7 +108,6 @@ function App() {
 
   return (
     <div className="app-layout">
-      {/* NEW SIDEBAR SECTION */}
       <div className="sidebar">
         <div className="sidebar-header">
           <h3>My Tickets</h3>
@@ -137,7 +133,6 @@ function App() {
         </div>
       </div>
 
-      {/* EXISTING CHAT SECTION */}
       <div className="chat-container">
         <div className="chat-header">
           <div className="header-info">
