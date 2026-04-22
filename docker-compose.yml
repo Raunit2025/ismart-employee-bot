@@ -17,7 +17,20 @@ services:
     environment:
       - OLLAMA_KEEP_ALIVE=24h
 
-  # 2. The Middleware (Translation, Voice, Ticketing Routing)
+  # 2. Database (PostgreSQL)
+  postgres_db:
+    image: postgres:15-alpine
+    container_name: ismart_postgres
+    environment:
+      POSTGRES_USER: ismart_admin
+      POSTGRES_PASSWORD: securepassword123
+      POSTGRES_DB: ismart_tickets
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+
+  # 3. The Middleware (Translation, Logic, Ticketing)
   api_middleware:
     build: ./middleware
     container_name: ismart_middleware
@@ -25,13 +38,15 @@ services:
       - "8000:8000"
     depends_on:
       - ollama
+      - postgres_db
     environment:
       - OLLAMA_URL=http://ollama:11434
       - DEVICE=cpu
+      - DATABASE_URL=postgresql://ismart_admin:securepassword123@postgres_db:5432/ismart_tickets
     volumes:
       - hf_data:/root/.cache/huggingface 
 
-  # 3. The Mock Chatbox UI
+  # 4. The Frontend Chat UI
   frontend_ui:
     build: ./frontend
     container_name: ismart_chat_ui
@@ -43,3 +58,4 @@ services:
 volumes:
   ollama_data:
   hf_data: 
+  pg_data:

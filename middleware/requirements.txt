@@ -6,3 +6,5 @@ torch
 transformers
 sentencepiece
 langdetect
+sqlalchemy
+psycopg2-binary

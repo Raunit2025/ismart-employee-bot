@@ -1,77 +1,192 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import './App.css';
 
 function App() {
-  const [input, setInput] = useState('');
+  const [employeeId, setEmployeeId] = useState('');
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [language, setLanguage] = useState('eng_Latn');
   const [messages, setMessages] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [input, setInput] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [tickets, setTickets] = useState([]); // New State for Tickets
+  
+  const messagesEndRef = useRef(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+  useEffect(() => { scrollToBottom(); }, [messages, isLoading]);
+
+  // Fetch Tickets Function
+  const fetchTickets = async (empId) => {
+    try {
+      const response = await fetch(`http://localhost:8000/tickets/${empId}`);
+      const data = await response.json();
+      setTickets(data.tickets || []);
+    } catch (error) {
+      console.error("Error fetching tickets:", error);
+    }
+  };
+
+  const handleLogin = (e) => {
+    e.preventDefault();
+    if (employeeId.trim()) {
+      setIsLoggedIn(true);
+      fetchTickets(employeeId); // Fetch tickets right after login
+    }
+  };
 
   const sendMessage = async () => {
     if (!input.trim()) return;
-    
-    const newMessages = [...messages, { sender: 'employee', text: input }];
-    setMessages(newMessages);
+
+    const userMsg = { sender: 'user', text: input };
+    setMessages((prev) => [...prev, userMsg]);
     setInput('');
-    setLoading(true);
+    setIsLoading(true);
 
     try {
       const response = await fetch('http://localhost:8000/chat', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ message: input }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          message: input, 
+          employee_id: employeeId,
+          language: language 
+        })
       });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
       const data = await response.json();
-      setMessages([...newMessages, { sender: 'bot', text: data.reply }]);
+      setMessages((prev) => [...prev, { sender: 'bot', text: data.reply }]);
       
+      // Refresh tickets in the sidebar after a new one is potentially created
+      fetchTickets(employeeId); 
+    // eslint-disable-next-line no-unused-vars
     } catch (error) {
-      console.error("Fetch error:", error);
-      setMessages([...newMessages, { sender: 'bot', text: "Connection error. Please try again." }]);
+      setMessages((prev) => [...prev, { sender: 'bot', text: "Error connecting to server." }]);
     }
     
-    setLoading(false);
+    setIsLoading(false);
   };
 
-  return (
-    <div style={{ maxWidth: '500px', margin: 'auto', padding: '20px', fontFamily: 'sans-serif' }}>
-      <div style={{ backgroundColor: '#0056b3', color: 'white', padding: '15px', borderRadius: '8px 8px 0 0' }}>
-        <h2>iSmart Support Chat</h2>
-      </div>
-      
-      <div style={{ height: '400px', overflowY: 'auto', border: '1px solid #ccc', padding: '10px', backgroundColor: '#f9f9f9' }}>
-        {messages.map((msg, idx) => (
-          <div key={idx} style={{ textAlign: msg.sender === 'employee' ? 'right' : 'left', margin: '10px 0' }}>
-            <div style={{ 
-              display: 'inline-block', 
-              padding: '10px', 
-              borderRadius: '8px',
-              backgroundColor: msg.sender === 'employee' ? '#d1e7dd' : '#e2e3e5',
-              whiteSpace: 'pre-line' 
-            }}>
-              {msg.text}
+  if (!isLoggedIn) {
+    // ... (Keep your exact existing login return block here) ...
+    return (
+      <div className="login-container">
+        <div className="login-card">
+          <div className="brand-logo">🛡️</div>
+          <h2>iSmart Support</h2>
+          <p className="subtitle">Employee Assistance Portal</p>
+          <form onSubmit={handleLogin}>
+            <div className="input-group">
+              <label>Employee ID</label>
+              <input 
+                type="text" 
+                placeholder="e.g. EMP101" 
+                value={employeeId} 
+                onChange={(e) => setEmployeeId(e.target.value)} 
+                required
+              />
             </div>
-          </div>
-        ))}
-        {loading && <div style={{ textAlign: 'left', color: 'gray' }}>Thinking...</div>}
+            <div className="input-group">
+              <label>Preferred Language</label>
+              <select value={language} onChange={(e) => setLanguage(e.target.value)}>
+                <option value="eng_Latn">English</option>
+                <option value="hin_Deva">Hindi (हिंदी)</option>
+                <option value="mar_Deva">Marathi (मराठी)</option>
+                <option value="ben_Beng">Bengali (বাংলা)</option>                
+                <option value="tam_Taml">Tamil (தமிழ்)</option>
+                <option value="tel_Telu">Telugu (తెలుగు)</option>
+                <option value="kan_Knda">Kannada (ಕನ್ನಡ)</option>
+                <option value="guj_Gujr">Gujarati (ગુજરાતી)</option>
+                <option value="pan_Guru">Punjabi (ਪੰਜਾਬੀ)</option>
+                <option value="ory_Orya">Odia (ଓଡ଼ିଆ)</option>
+                <option value="mal_Mlym">Malayalam (മലയാളം)</option>
+              </select>
+            </div>
+            <button type="submit" className="primary-btn">Secure Login</button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="app-layout">
+      {/* NEW SIDEBAR SECTION */}
+      <div className="sidebar">
+        <div className="sidebar-header">
+          <h3>My Tickets</h3>
+        </div>
+        <div className="ticket-list">
+          {tickets.length === 0 ? (
+            <p className="no-tickets">No open tickets.</p>
+          ) : (
+            tickets.map((ticket) => (
+              <div key={ticket.id} className="ticket-card">
+                <div className="ticket-header">
+                  <span className="ticket-id">#{ticket.id}</span>
+                  <span className={`ticket-status ${ticket.status.toLowerCase()}`}>{ticket.status}</span>
+                </div>
+                <div className="ticket-category">{ticket.category}</div>
+                <div className="ticket-meta">
+                  <span className={`priority-dot ${ticket.priority.toLowerCase()}`}></span>
+                  {ticket.priority} Priority • {ticket.date.split(' ')[0]}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
       </div>
 
-      <div style={{ display: 'flex', marginTop: '10px' }}>
-        <input 
-          style={{ flex: 1, padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }}
-          value={input} 
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
-          placeholder="Type your issue..." 
-        />
-        <button onClick={sendMessage} style={{ padding: '10px 20px', marginLeft: '5px', cursor: 'pointer' }}>
-          Send
-        </button>
+      {/* EXISTING CHAT SECTION */}
+      <div className="chat-container">
+        <div className="chat-header">
+          <div className="header-info">
+            <h3>iSmart Assistant</h3>
+            <span className="status-indicator">● Online</span>
+          </div>
+          <div className="user-badge">ID: {employeeId}</div>
+        </div>
+        
+        <div className="chat-history">
+          {messages.length === 0 && (
+            <div className="empty-state">
+              <p>Hello! I am your iSmart Support Assistant.</p>
+              <p>How can I help you today?</p>
+            </div>
+          )}
+          {messages.map((msg, idx) => (
+            <div key={idx} className={`message-wrapper ${msg.sender}`}>
+              <div className={`message ${msg.sender}`}>
+                {msg.text.split('\n').map((line, i) => (
+                  <span key={i}>{line}<br/></span>
+                ))}
+              </div>
+            </div>
+          ))}
+          {isLoading && (
+            <div className="message-wrapper bot">
+              <div className="message bot typing">
+                <div className="dot"></div>
+                <div className="dot"></div>
+                <div className="dot"></div>
+              </div>
+            </div>
+          )}
+          <div ref={messagesEndRef} />
+        </div>
+
+        <div className="chat-input-area">
+          <input 
+            value={input} 
+            onChange={(e) => setInput(e.target.value)} 
+            onKeyDown={(e) => { if (e.key === 'Enter') sendMessage(); }}
+            placeholder="Type your message here..." 
+            autoFocus
+          />
+          <button onClick={sendMessage} disabled={isLoading || !input.trim()} className="send-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+          </button>
+        </div>
       </div>
     </div>
   );
